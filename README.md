@@ -22,7 +22,7 @@ Before we embark on studying games, we will first become familiar with Async, an
 
 ### Exercise 0: Concurrency
 
-### Task 0: Solving puzzles
+#### Task 0: Solving puzzles
 
 Build and show the available concurrency exercises with
 ```

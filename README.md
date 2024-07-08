@@ -297,9 +297,7 @@ and run the __score__ function on "terminal" nodes that are nodes where
 either the game ends (score is infinity) or where the max depth has been reached.
 
 You can use your already implemented `evaluate` function to implement a `score`
-function. You can implement `score` in `tictactoe_game_ai.ml`. A very basic 
-version of score can be -infinity for loss, +infinity for win, [0.0] for the
-game continuing.
+function. A very basic version of score can be -infinity for loss, +infinity for win, [0.0] for the game continuing.
 
 Read the pseudocode on minimax from [wikipedia](https://en.wikipedia.org/wiki/Minimax#Pseudocode).
 

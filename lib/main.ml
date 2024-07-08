@@ -36,8 +36,17 @@ module Exercises = struct
   ;;
 
   let print_game (game : Game.t) =
-    ignore game;
-    print_endline ""
+    
+    let list_to_print = List.init 5 ~f:(fun n -> match n with
+    | 0 -> (if (Map.existsi game.board ~f:(fun ~key ~data -> ignore data; Game.Position.equal key {Game.Position.row=0; Game.Position.column=0})) then Game.Piece.to_string (Map.find_exn game.board ({Game.Position.row=0; Game.Position.column=0})) else " ") ^ " | " ^ (if (Map.existsi game.board ~f:(fun ~key ~data -> ignore data;Game.Position.equal key {Game.Position.row=0; Game.Position.column=1})) then Game.Piece.to_string (Map.find_exn game.board ({Game.Position.row=0; Game.Position.column=1})) else " ") ^ " | " ^ (if (Map.existsi game.board ~f:(fun ~key ~data -> ignore data;Game.Position.equal key {Game.Position.row=0; Game.Position.column=2})) then Game.Piece.to_string (Map.find_exn game.board ({Game.Position.row=0; Game.Position.column=2})) else " ")
+    | 1 -> "---------"
+    | 2 -> (if (Map.existsi game.board ~f:(fun ~key ~data -> ignore data;Game.Position.equal key {Game.Position.row=1; Game.Position.column=0})) then Game.Piece.to_string (Map.find_exn game.board ({Game.Position.row=1; Game.Position.column=0})) else " ") ^ " | " ^ (if (Map.existsi game.board ~f:(fun ~key ~data -> ignore data;Game.Position.equal key {Game.Position.row=1; Game.Position.column=1})) then Game.Piece.to_string (Map.find_exn game.board ({Game.Position.row=1; Game.Position.column=1})) else " ") ^ " | " ^ (if (Map.existsi game.board ~f:(fun ~key ~data -> ignore data;Game.Position.equal key {Game.Position.row=1; Game.Position.column=2})) then Game.Piece.to_string (Map.find_exn game.board ({Game.Position.row=1; Game.Position.column=2})) else " ")
+    | 3 -> "---------"
+    | 4 -> (if (Map.existsi game.board ~f:(fun ~key ~data -> ignore data;Game.Position.equal key {Game.Position.row=2; Game.Position.column=0})) then Game.Piece.to_string (Map.find_exn game.board ({Game.Position.row=2; Game.Position.column=0})) else " ") ^ " | " ^ (if (Map.existsi game.board ~f:(fun ~key ~data -> ignore data;Game.Position.equal key {Game.Position.row=2; Game.Position.column=1})) then Game.Piece.to_string (Map.find_exn game.board ({Game.Position.row=2; Game.Position.column=1})) else " ") ^ " | " ^ (if (Map.existsi game.board ~f:(fun ~key ~data -> ignore data;Game.Position.equal key {Game.Position.row=2; Game.Position.column=2})) then Game.Piece.to_string (Map.find_exn game.board ({Game.Position.row=2; Game.Position.column=2})) else " ")
+    | _ -> ""
+    ) in List.iter list_to_print ~f:(fun row -> print_endline row)
+
+
   ;;
 
   let%expect_test "print_win_for_x" =
@@ -160,20 +169,34 @@ module Exercises = struct
   ;;
 end
 
+let handle_turn (_client : unit) (query : Rpcs.Take_turn.Query.t) = 
+  print_s [%message "Received query" (query : Rpcs.Take_turn.Query.t)];
+    let response = { Rpcs.Take_turn.Response.piece = query.you_play ; Rpcs.Take_turn.Response.position = {row=2; column=2}} in
+    return response
+
 let command_play =
   Command.async
     ~summary:"Play"
     (let%map_open.Command () = return ()
-     and controller =
-       flag "-controller" (required host_and_port) ~doc:"_ host_and_port of controller"
+     (* and controller =
+       flag "-controller" (required host_and_port) ~doc:"_ host_and_port of controller" *)
      and port = flag "-port" (required int) ~doc:"_ port to listen on" in
      fun () ->
        (* We should start listing on the supplied [port], ready to handle incoming
           queries for [Take_turn] and [Game_over]. We should also connect to the
           controller and send a [Start_game] to initiate the game. *)
-       ignore controller;
-       ignore port;
-       return ())
+          let%bind server =
+            let implementations = Rpc.Implementations.create_exn ~on_unknown_rpc:`Close_connection ~implementations:[Rpc.Rpc.implement Rpcs.Take_turn.rpc handle_turn] in
+           Rpc.Connection.serve
+             ~implementations
+             ~initial_connection_state:(fun _client_identity _client_addr ->
+               (* This constructs the "client" values which are passed to the
+                  implementation function above. We're just using unit for now. *)
+               ())
+             ~where_to_listen:(Tcp.Where_to_listen.of_port port)
+             ()
+         in
+         Tcp.Server.close_finished server)
 ;;
 
 let command =

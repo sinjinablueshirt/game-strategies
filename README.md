@@ -301,8 +301,6 @@ function. You can implement `score` in `tictactoe_game_ai.ml`. A very basic
 version of score can be -infinity for loss, +infinity for win, [0.0] for the
 game continuing.
 
-#### Exercise 5.2
-
 Read the pseudocode on minimax from [wikipedia](https://en.wikipedia.org/wiki/Minimax#Pseudocode).
 
 **What is a "terminal node"?**

@@ -1,93 +1,255 @@
-# Game Strategies
+# Tic-Tac-Toe
 
-This project will teach you about adversarial games and game AIs to implement bots that play tic-tac-toe and gomoku!
+In this week you will learn about _adversarial games_ and 
+game AIs to implement OCaml 🐫 bots that play
+[**tic-tac-toe**](https://en.wikipedia.org/wiki/Tic-tac-toe) and
+[**Gomoku**](https://en.wikipedia.org/wiki/Gomoku).
 
-## Getting Started
 
-Fork this repository by visiting [this page](https://github.com/jane-street-immersion-program/game-strategies/fork) and clicking the green "Create form" button.
+In these exercises you will:
+- _Play_ **TIC TAC TOE**!!
+- _Write_ a bot to play **TIC TAC TOE**!!
+- _Improve_ your **TIC TAC TOE bot**!!
 
-Next, clone the form locally. Remember, you can clone the repo by doing `git clone git@github.com:$USER/game-strategies.git`.
+## Background
 
-You can build the codebase by 
+_Tic-tac-toe_ is a game in which two players take turns in placing either
+an `O` or an `X` in one square of a __3x3__ grid. The winner is the first
+player to get __3__ of the same symbols in a row.
+
+_Gomoku_ (also commonly referred to as "Omok"), is very similar to tic-tac-toe,
+but __bigger__. Two players play on a 15x15 board and the winner is the first
+player to get __5__ pieces in a row.
+
+You can think of a digital tic-tac-toe board as a "mapping" of "position -> piece"
+with the following types:
+
+```ocaml
+
+module Position : sig
+  (* Top-left is [{row = 0; column = 0}].
+
+     row indexes increment downwards.
+
+     column indexes increment rightwards. *)
+  type t =
+    { row    : int
+    ; column : int
+    }
+end
+
+module Piece : sig
+  type t =
+    | X
+    | O
+end
+
 ```
-$ cd game-strategies/
-$ dune build
-$ dune runtest
-$ dune exec ./bin/game_strategies.exe --
+
+
+For example, the board:
+
+```
+ X | - | - 
+___|___|___
+ - | O | X 
+___|___|___
+ - | O | - 
+```
+   
+Can be represented as a mapping of:
+```
+(row, column)
+  (0, 0) => X
+  (1, 1) => O
+  (1, 2) => X
+  (2, 1) => O
 ```
 
-## Async
+What board does the following "mapping" represent? Is there anything interesting
+happening? (Hint: If you were O, what move would you play?) Feel free to edit
+the "Answer board" below:
 
-Before we embark on studying games, we will first become familiar with Async, an Ocaml library and framework we use for concurrency. These async exercises are not present in this repo but have already been pushed to your machines under the directory "async_exercises". Enter this directory for the exercises in this section.
-
-### Exercise 0: Concurrency
-
-#### Task 0: Solving puzzles
-
-Build and show the available concurrency exercises with
 ```
+(row, column)
+  (1, 1) => X
+  (0, 0) => O
+  (0, 2) => O
+  (2, 0) => X
+  (2, 1) => X
+  (2, 2) => O
+```
+Answer board:
+
+```
+ - | - | - 
+ __|___|___
+ - | - | - 
+ __|___|___
+ - | - | - 
+```
+               
+After you've answered look for a fellow fellow near you and discuss your answers!
+
+## Prep work
+
+First, fork this repository by visiting [this
+page](https://github.com/jane-street-immersion-program/game-strategies/fork) and clicking
+on the green "Create fork" button at the bottom.
+
+Then clone the fork locally (on your AWS machine) to get started. You can clone a repo on
+the command line like this (where `$USER` is your GitHub username):
+
+```sh
+$ git clone git@github.com:$USER/tictactoe.git
+Cloning into 'tictactoe'...
+remote: Enumerating objects: 61, done.
+remote: Counting objects: 100% (61/61), done.
+remote: Compressing objects: 100% (57/57), done.
+remote: Total 61 (delta 2), reused 61 (delta 2), pack-reused 0
+Receiving objects: 100% (61/61), 235.81 KiB | 6.74 MiB/s, done.
+Resolving deltas: 100% (2/2), done.
+```
+
+This repository contains several components:
+
+```sh
+.
+├── bin
+│   ├── controller.ml
+│   ├── controller.mli
+│   ├── game_strategies.ml
+│   ├── game_strategies.mli
+├── common
+│   ├── game.ml
+│   ├── game.mli
+│   ├── rpcs.ml
+│   ├── rpcs.mli
+├── controller
+│   ├── main.ml
+│   ├── main.mli
+├── lib
+│   ├── main.ml
+│   ├── main.mli
+└── README.md
+```
+
+You will be working wholly within the `lib` directory, though you'll be making frequent
+references to items in the `common` directory, too.
+
+## Exercises
+
+You can think of an AI that plays tic-tac-toe board as a "function" of type
+`me:Game.Piece.t -> game:Game.t -> Game.Position.t`.
+
+the `me` parameter is the piece that you're bot is playing as. The `game` is the current
+state of the game, most notably including the positions of all the previously-played
+pieces. The output of this function is the position that your bot plays on this turn.
+
+Over the course of these exercises you will be gradually building such a function.
+
+Make sure you can build this repo:
+```sh
 dune build
-dune runtest
-$ dune exec ./bin/async_exercises.exe --
 ```
 
-Inspect the `do_a_thing` function near the top of `src/concurrency_exercises.ml`. What does this function do?
+(Feel free to run `dune runtest` but know that the tests do not currently suceed.)
 
-There are several "puzzle" exercises which you can run via `dune exec ./bin/async_exercises.exe -- concurrency -?`. Before running each one, read the source code and try to predict the behavior. Then, execute that puzzle (with eg `dune exec ./bin/async_exercises.exe -- concurrency 1`). Does the actual behavior match your prediction?
+### Exercise 0: Printing the board
 
-#### Task 1: Write your own puzzles
+Let's start by looking at the `win_for_x` and `non_win` values in `lib/main.ml`, which are
+`Game.t`s. Make sure you understand this record and the items it comprises. To test your
+understanding - and also to build up an important debugging tool - you'll need to
+implement the `print_game` function (found in `lib/main.ml` in the `Exercises`
+module). There are two expect tests which have been written for you; these are currently
+failing and will pass only when you correctly implement the `print_game` function. _(Hint:
+Consider `List.init`.)_
 
-For this task, we will be authoring new puzzles. Follow the existing template and create each new puzzle in its own module inside of `src/concurrency_exercises.ml`. Remember, too, to edit the `command` value to reference any new puzzles.
+### Exercise 1: Where can I move?
 
-1. Write and run a puzzle that takes a total of 4 seconds and calls `do_a_thing 2` at least 3 times.
-1. Write and run a puzzle that calls `do_a_thing 2` but completes in less than 2 seconds.
-1. Write and run a puzzle that calls `do_a_thing` three times with three different "duration" values, and completes as soon as the _earliest_ one finishes.
+Each turn, your AI _needs_ to make a decision of "which free available spot" it should
+pick. Let's find "all free available spots"! Implement
+`available_moves` in `lib/main.ml`.
 
-### Exercise 1: RPC
-
-#### Task 0: Run Ping
-
-In this exercise, we will start an RPC server and connect to it with a client. Recall the terminology: we say that the client connects to the server and sends a _query_ to it over the network; the server then runs a function which takes that _query_, generates a _response_, and then returns that _response_ over the connection to the client.
-
-The code for this exercise is in `src/rpc_exercises.ml`.  This file contains several modules. None of these modules are strictly necessary but they organize the code nicely.
-
-##### Module _Ping_
-
-This module contains two sub-modules - _Query_ and _Response_ - each of which has a _type t_. These are the types of the messages which will be exchanged between the server and the client. The client will send a _Query_ to the server and the server will reply with a _Response_.
-
-##### Module _Protocol_
-
-It's possible for a server to be able to handle multiple kind of queries (each of which will have a type of response). Each of these _query_/_response_ exchanges constitutes a single RPC ("Remote Procedure Call"). The `ping_rpc` value in this module has a type of `(Ping.Query.t, Ping.Response.t) Rpc.Rpc.t`, that is, it is an RPC which takes a `Ping.Query.t` and replies with a `Ping.Response.t`.
-
-##### Module _Server_
-
-This module contains the `command` value which takes command line parameters and starts the server parts of the program. Make sure you thoroughly understand the other items in this module:
-* `handle_ping` is a function which takes a _client_ (_unit_ in this case) and a _query_; it returns a _response_.
-* `implementations` is a value of which defines the implementation of all the RPCs which this server implements; it uses `handle_ping` to define that implementation.
-
-##### Module _Client_
-
-This module contains on the `command` value. Inside the function it runs, it constructs a _query_, connects to the server, and sends that _query_. The call to `Rpc.Connection.with_client` returns a Deferred, so we need to bind on it to block until that value has become determined. Once that's done, it prints out the response it received.
-
-Make sure the `async_exercises` directory is built properly:
-```
-dune build
-dune runtest
+```ocaml
+val available_moves : Game.t -> Game.Position.t list
 ```
 
-To run both the client and the server, we'll need to ssh to our EC2 box twice. From one terminal, run `dune exec ./bin/async_exercises.exe -- rpc server -port $PORT` - replace $PORT with any integer between 1025 and 65535, it's customary to choose something between 10000 and 20000. From the other terminal, run `dune exec ./bin/async_exercises.exe -- rpc client -server 'localhost:$PORT'` and make sure that (1) the server is running and (2) the port numbers you specify for the server and client are identical.
+This function takes a game as input and returns a list of currently-available
+positions. You can run this function on the two existing games with the command `dune exec
+bin/game_strategies.exe exercises one`. But note that `avaiblable_moves` is a _pure_
+function. This makes it easy to test via an expect test, which you should write. In
+addition to the two existing games, can you think of a third game which would represent a
+good test?
 
-#### Task 1: Delayed Ping
+### Exercise 2: Is the game over?
 
-To convince ourselves that the server can service multiple clients concurrently, let's add a 10 second delay on the server side. (Refer back to `do_a_thing` from the earlier exercise if you need to remind yourself how to perform this delay.)
+One crucial step in authoring our bots is examining a game and determining if the game is
+over. To do this, implement `evaluate` function in `lib/main.ml`.
 
-To test this, prepare *three* terminals. From one, run the server. From the second, run the client. From the third, *quickly* after running the client in the second terminal, run the client again. Look at the time in the response method and insert new _print_ statements to verify that the server is handling both clients concurrently. We should undo this change after testing it and confirming that we understand it, we don't need to introduce artificial delays into the program.
+```ocaml
+val evaluate : Game.t -> Game.Evaluation.t
+```
 
-#### Task 2: Richer query and response
+The returned type represents all the possible states that a game can be in:
 
-In this task, we'll improve the existing `Ping.Query.t` and `Ping.Response.t` and additionally create new query/response pairs which our client and server understand how to send/receive. The existing `Ping.Query.t` type is currently a _unit_. Let's enhance the query type by making it into a string, which we take as an argument on the command line. Let's also enhance the _response_ record to echo that same message back to the client in addition to the time.
+```ocaml
+module Evaluation : sig
+  type t =
+    | Illegal_move
+    | Game_continues
+    | Game_over of { winner : Piece.t option }
+end
+```
 
+Can you think of why the `winner` is the `Game_over` variant needs to be an option?
 
-#### Task 3: RPC - Additional queries and responses
+### Exercise 3: Is there a winning move?
 
-A server can understand how to handle more than one kind of query. Create a new module called `RainbowColor` that contains a `type t` that expresses the seven ROYGBIV colors. Create a query module/type that permits clients to send the server a specfic color; the response to this should be a random color in ROYGBIV which is _not_ the color in the query. Our server should be able to handle this new query/response as well as the existing "Ping" query/response. Our client should take something on the command line that indiciates whether it should send a Ping query or a RainbowColor query.
+Now we can really start to put things together. We can detect if the game is already over.
+And we can get a list of available moves. One naive technique our bots could employ is to
+play a random move from among the available ones. But we can do better than this! If there
+is a move which causes us to win, we should probably play it! Discovering all the possible
+winning moves is the task of the function `winning_moves` in `lib/main.ml`.
+
+```ocaml
+val winning_moves : me:Game.Piece.t -> Game.t -> Game.Position.t list
+```
+
+Given the piece we are meant to play, and given the game state, what are all the positions
+which - if played - would win us the game? You can test this function via "exercise three"
+on the command line, but because this function, too, is pure, you should write an expect
+test as well! In addition to the two supplied games, what other games would represent
+useful ones to test your `winning_moves` function?
+
+### Exercise 4: Is there a losing move?
+
+The last piece we'll need is the ability to find moves that would cause our bot's
+_opponent_ to immediately win. Finding these losing moves is the task of the
+`losing_moves` function in `/lib/main.ml`.
+
+```ocaml
+val losing_moves : me:Game.Piece.t -> Game.t -> Game.Position.t list
+```
+
+This function should return all the moves that immediately lose for the piece specified in
+the `me` argument. The good news is that you already have implemented a function which
+finds the _winning_ moves for a given piece. Can you use `Game.Piece.flip` to put this
+together? Once again, there is a command line instruction to run this example but you
+should write an expect test for this function, too.
+
+### Exercise 5: One move ahead
+
+Now that we can detect all the moves available to us and figure out which game states will
+cause us to immediately lose, let's write a function to look one move ahead. There is no
+scaffolding for this function; you're all on your own.
+
+Write a function called `available_moves_that_do_not_immediately_lose`. As with the
+`winning_moves` and `losing_moves` functions, this one should take a `Game.Piece.t`
+argument and a `Game.t` argument and return a list of `Game.Position.t`s. The idea is we
+want to find all the moves which are legal _AND_ which will not let the opponent win on
+the next move (assuming perfect play).
+
+You should write a `Command` for this exercise, similar to the others. Additionally, you
+should write at least one expect test for this function. Make sure you devise `Game`s
+which illustrate a variety of different situations.

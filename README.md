@@ -253,3 +253,71 @@ the next move (assuming perfect play).
 You should write a `Command` for this exercise, similar to the others. Additionally, you
 should write at least one expect test for this function. Make sure you devise `Game`s
 which illustrate a variety of different situations.
+
+### Exercise 6: Even more moves ahead!
+
+We've never mentioned its name thus far, but we've been secretly been implementing
+a version of the algorithm ["Minimax"](https://en.wikipedia.org/wiki/Minimax). It
+was one of the earlier algorithms to beat humans at complex games like chess,
+and it's also the algorithm we'll be implementing next.
+
+Thus far we've implemented an algorithm that can look __1__ move into the future
+and if it can win/not lose into the future, it can make the best decision. One
+immediate idea is:
+
+* What if we look **further** into the future?
+
+Take a moment to intuitively think, for yourself on a piece of paper/on a text
+file, if you could look __2__ moves into the future on tic tac toe/how would
+you pick your next move? What about __3__? Discuss with another fellow or if no
+one is available talk to a TA!
+
+
+Minimax has a couple of parts:
+
+* __score__: What is the current "score" of the game's position? This is a bit
+  silly on a game like tic-tac-toe/omok, but you could think of "winning" as
+  +infinity score and losing as -infinity score. You could also come up with
+  heuristics like, if I see "2" pieces together, then I add 4, if my opponent has
+  4 pieces together, then I subtract 50. Or even if I have n pieces together, I
+  add `n*n` to my score.
+* __maximizing__ player: You win when your score reaches +infinity, so you want
+ to __maximize__ the score.
+* __minimizing__ player: Your opponent wins when the score reaches -inifinity, so
+  they will always want to __minimize__ the score.
+  
+Minimax assumes that both players will play optimally, so minimax assumes that
+the __maximizing__ player will always pick the move that results in the maximum
+score, and that the __minimizing__ player picks the smaller score.
+
+Minimax operates under a "max-depth" it will travese to it will take as a parameter
+"how many moves into the future" it should try to evaluate. It will then build
+a tree like the ones shown in this [wikipedia page](https://en.wikipedia.org/wiki/Minimax)
+and run the __score__ function on "terminal" nodes that are nodes where
+either the game ends (score is infinity) or where the max depth has been reached.
+
+You can use your already implemented `evaluate` function to implement a `score`
+function. You can implement `score` in `tictactoe_game_ai.ml`. A very basic 
+version of score can be -infinity for loss, +infinity for win, [0.0] for the
+game continuing.
+
+#### Exercise 5.2
+
+Read the pseudocode on minimax from [wikipedia](https://en.wikipedia.org/wiki/Minimax#Pseudocode).
+
+**What is a "terminal node"?**
+
+A terminal node is the game ending by someone winning/losing
+or by the game tie'ing due to all of the slots being filled.
+
+**What is the "heuristic value of node"?**
+
+It would be the `score` function you just implemented.
+
+**What is the "child of node"**?
+
+The `available_moves` function
+
+If you have any questions please ask a TA!
+
+Implement minimax by following the pseudocode from wikipedia! Can you solve the entire game?!

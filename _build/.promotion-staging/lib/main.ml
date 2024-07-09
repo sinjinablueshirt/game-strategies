@@ -3,8 +3,8 @@ open! Async
 open! Game_strategies_common_lib
 
 module Exercises = struct
-  (* Here are some functions which know how to create a couple different kinds
-     of games *)
+  (* Here are some functions which know how to create a couple different
+     kinds of games *)
   let empty_game = Game.empty Game.Game_kind.Tic_tac_toe
 
   let place_piece (game : Game.t) ~piece ~position : Game.t =
@@ -36,35 +36,163 @@ module Exercises = struct
   ;;
 
   let print_game (game : Game.t) =
-    (* let new_list = List.init position_list ~f:(fun index thing -> match index with
-    | 0 -> (if Map.exists game.board ~f:(fun pos -> Game.Position.equal pos {Game.Position.row=0; Game.Position.column=0}) then Map.find_exn game.board {Game.Position.row=0; Game.Position.column=0} else " ")
-    | _ -> " "
-
-    ) in
-    let () = Map.iteri game.board ~f:(fun ~key ~data -> match key with
-    | {Game.Position.row=0; Game.Position.column=0} -> List.) *)
-    
-    let list_to_print = List.init 5 ~f:(fun n -> match n with
-    | 0 -> (if (Map.existsi game.board ~f:(fun ~key ~data -> ignore data; Game.Position.equal key {Game.Position.row=0; Game.Position.column=0})) then Game.Piece.to_string (Map.find_exn game.board ({Game.Position.row=0; Game.Position.column=0})) else " ") ^ " | " ^ (if (Map.existsi game.board ~f:(fun ~key ~data -> ignore data;Game.Position.equal key {Game.Position.row=0; Game.Position.column=1})) then Game.Piece.to_string (Map.find_exn game.board ({Game.Position.row=0; Game.Position.column=1})) else " ") ^ " | " ^ (if (Map.existsi game.board ~f:(fun ~key ~data -> ignore data;Game.Position.equal key {Game.Position.row=0; Game.Position.column=2})) then Game.Piece.to_string (Map.find_exn game.board ({Game.Position.row=0; Game.Position.column=2})) else " ")
-    | 1 -> "---------"
-    | 2 -> (if (Map.existsi game.board ~f:(fun ~key ~data -> ignore data;Game.Position.equal key {Game.Position.row=1; Game.Position.column=0})) then Game.Piece.to_string (Map.find_exn game.board ({Game.Position.row=1; Game.Position.column=0})) else " ") ^ " | " ^ (if (Map.existsi game.board ~f:(fun ~key ~data -> ignore data;Game.Position.equal key {Game.Position.row=1; Game.Position.column=1})) then Game.Piece.to_string (Map.find_exn game.board ({Game.Position.row=1; Game.Position.column=1})) else " ") ^ " | " ^ (if (Map.existsi game.board ~f:(fun ~key ~data -> ignore data;Game.Position.equal key {Game.Position.row=1; Game.Position.column=2})) then Game.Piece.to_string (Map.find_exn game.board ({Game.Position.row=1; Game.Position.column=2})) else " ")
-    | 3 -> "---------"
-    | 4 -> (if (Map.existsi game.board ~f:(fun ~key ~data -> ignore data;Game.Position.equal key {Game.Position.row=2; Game.Position.column=0})) then Game.Piece.to_string (Map.find_exn game.board ({Game.Position.row=2; Game.Position.column=0})) else " ") ^ " | " ^ (if (Map.existsi game.board ~f:(fun ~key ~data -> ignore data;Game.Position.equal key {Game.Position.row=2; Game.Position.column=1})) then Game.Piece.to_string (Map.find_exn game.board ({Game.Position.row=2; Game.Position.column=1})) else " ") ^ " | " ^ (if (Map.existsi game.board ~f:(fun ~key ~data -> ignore data;Game.Position.equal key {Game.Position.row=2; Game.Position.column=2})) then Game.Piece.to_string (Map.find_exn game.board ({Game.Position.row=2; Game.Position.column=2})) else " ")
-    | _ -> ""
-    ) in List.iter list_to_print ~f:(fun row -> print_endline (row ^ " lolol "))
-
-
+    let n = Game.Game_kind.board_length game.game_kind in
+    let lists_to_print =
+      List.init n ~f:(fun row ->
+        List.init n ~f:(fun col ->
+          if Map.existsi game.board ~f:(fun ~key ~data ->
+               ignore data;
+               Game.Position.equal
+                 key
+                 { Game.Position.row; Game.Position.column = col })
+          then
+            Game.Piece.to_string
+              (Map.find_exn
+                 game.board
+                 { Game.Position.row; Game.Position.column = col })
+          else " "))
+    in
+    let rows_as_strings =
+      List.map lists_to_print ~f:(fun row_list -> String.concat row_list)
+    in
+    List.iteri rows_as_strings ~f:(fun row_num row ->
+      print_endline row;
+      if row_num < n - 1 then print_endline "---------")
   ;;
 
+  let _bad_print_game (game : Game.t) =
+    let list_to_print =
+      List.init 5 ~f:(fun n ->
+        match n with
+        | 0 ->
+          (if Map.existsi game.board ~f:(fun ~key ~data ->
+                ignore data;
+                Game.Position.equal
+                  key
+                  { Game.Position.row = 0; Game.Position.column = 0 })
+           then
+             Game.Piece.to_string
+               (Map.find_exn
+                  game.board
+                  { Game.Position.row = 0; Game.Position.column = 0 })
+           else " ")
+          ^ " | "
+          ^ (if Map.existsi game.board ~f:(fun ~key ~data ->
+                  ignore data;
+                  Game.Position.equal
+                    key
+                    { Game.Position.row = 0; Game.Position.column = 1 })
+             then
+               Game.Piece.to_string
+                 (Map.find_exn
+                    game.board
+                    { Game.Position.row = 0; Game.Position.column = 1 })
+             else " ")
+          ^ " | "
+          ^
+          if Map.existsi game.board ~f:(fun ~key ~data ->
+               ignore data;
+               Game.Position.equal
+                 key
+                 { Game.Position.row = 0; Game.Position.column = 2 })
+          then
+            Game.Piece.to_string
+              (Map.find_exn
+                 game.board
+                 { Game.Position.row = 0; Game.Position.column = 2 })
+          else " "
+        | 1 -> "---------"
+        | 2 ->
+          (if Map.existsi game.board ~f:(fun ~key ~data ->
+                ignore data;
+                Game.Position.equal
+                  key
+                  { Game.Position.row = 1; Game.Position.column = 0 })
+           then
+             Game.Piece.to_string
+               (Map.find_exn
+                  game.board
+                  { Game.Position.row = 1; Game.Position.column = 0 })
+           else " ")
+          ^ " | "
+          ^ (if Map.existsi game.board ~f:(fun ~key ~data ->
+                  ignore data;
+                  Game.Position.equal
+                    key
+                    { Game.Position.row = 1; Game.Position.column = 1 })
+             then
+               Game.Piece.to_string
+                 (Map.find_exn
+                    game.board
+                    { Game.Position.row = 1; Game.Position.column = 1 })
+             else " ")
+          ^ " | "
+          ^
+          if Map.existsi game.board ~f:(fun ~key ~data ->
+               ignore data;
+               Game.Position.equal
+                 key
+                 { Game.Position.row = 1; Game.Position.column = 2 })
+          then
+            Game.Piece.to_string
+              (Map.find_exn
+                 game.board
+                 { Game.Position.row = 1; Game.Position.column = 2 })
+          else " "
+        | 3 -> "---------"
+        | 4 ->
+          (if Map.existsi game.board ~f:(fun ~key ~data ->
+                ignore data;
+                Game.Position.equal
+                  key
+                  { Game.Position.row = 2; Game.Position.column = 0 })
+           then
+             Game.Piece.to_string
+               (Map.find_exn
+                  game.board
+                  { Game.Position.row = 2; Game.Position.column = 0 })
+           else " ")
+          ^ " | "
+          ^ (if Map.existsi game.board ~f:(fun ~key ~data ->
+                  ignore data;
+                  Game.Position.equal
+                    key
+                    { Game.Position.row = 2; Game.Position.column = 1 })
+             then
+               Game.Piece.to_string
+                 (Map.find_exn
+                    game.board
+                    { Game.Position.row = 2; Game.Position.column = 1 })
+             else " ")
+          ^ " | "
+          ^
+          if Map.existsi game.board ~f:(fun ~key ~data ->
+               ignore data;
+               Game.Position.equal
+                 key
+                 { Game.Position.row = 2; Game.Position.column = 2 })
+          then
+            Game.Piece.to_string
+              (Map.find_exn
+                 game.board
+                 { Game.Position.row = 2; Game.Position.column = 2 })
+          else " "
+        | _ -> "")
+    in
+    List.iter list_to_print ~f:(fun row -> print_endline row)
+  ;;
+
+  (* (List.mapi row_list ~f:(fun index piece -> if index=n-1 then piece else
+     piece^" | ")) *)
   let%expect_test "print_win_for_x" =
     print_game win_for_x;
     [%expect
       {|
-      X | O | X lolol
-      --------- lolol
-      O | O | X lolol
-      --------- lolol
-      O | X | X lolol
+      XOX
+      ---------
+      OOX
+      ---------
+      OXX
       |}];
     return ()
   ;;
@@ -73,11 +201,11 @@ module Exercises = struct
     print_game non_win;
     [%expect
       {|
-      X |   |   lolol
-      --------- lolol
-      O |   |   lolol
-      --------- lolol
-      O |   | X lolol
+      X
+      ---------
+      O
+      ---------
+      O X
       |}];
     return ()
   ;;
@@ -95,14 +223,18 @@ module Exercises = struct
   ;;
 
   (* Exercise 3 *)
-  let winning_moves ~(me : Game.Piece.t) (game : Game.t) : Game.Position.t list =
+  let winning_moves ~(me : Game.Piece.t) (game : Game.t)
+    : Game.Position.t list
+    =
     ignore me;
     ignore game;
     failwith "Implement me!"
   ;;
 
   (* Exercise 4 *)
-  let losing_moves ~(me : Game.Piece.t) (game : Game.t) : Game.Position.t list =
+  let losing_moves ~(me : Game.Piece.t) (game : Game.t)
+    : Game.Position.t list
+    =
     ignore me;
     ignore game;
     failwith "Implement me!"
@@ -139,8 +271,9 @@ module Exercises = struct
       (required (Arg_type.create Game.Piece.of_string))
       ~doc:
         ("PIECE "
-         ^ (Game.Piece.all |> List.map ~f:Game.Piece.to_string |> String.concat ~sep:", ")
-        )
+         ^ (Game.Piece.all
+            |> List.map ~f:Game.Piece.to_string
+            |> String.concat ~sep:", "))
   ;;
 
   let exercise_three =
@@ -168,42 +301,54 @@ module Exercises = struct
   let command =
     Command.group
       ~summary:"Exercises"
-      [ "one"  , exercise_one
-      ; "two"  , exercise_two
+      [ "one", exercise_one
+      ; "two", exercise_two
       ; "three", exercise_three
-      ; "four" , exercise_four
+      ; "four", exercise_four
       ]
   ;;
 end
 
-let handle_turn (_client : unit) (query : Rpcs.Take_turn.Query.t) = 
+let handle_turn (_client : unit) (query : Rpcs.Take_turn.Query.t) =
   print_s [%message "Received query" (query : Rpcs.Take_turn.Query.t)];
-    let response = { Rpcs.Take_turn.Response.piece = query.you_play ; Rpcs.Take_turn.Response.position = {row=2; column=2}} in
-    return response
+  let response =
+    { Rpcs.Take_turn.Response.piece = query.you_play
+    ; Rpcs.Take_turn.Response.position = { row = 2; column = 2 }
+    }
+  in
+  return response
+;;
 
 let command_play =
   Command.async
     ~summary:"Play"
     (let%map_open.Command () = return ()
-     (* and controller =
-       flag "-controller" (required host_and_port) ~doc:"_ host_and_port of controller" *)
+     (* and controller = flag "-controller" (required host_and_port) ~doc:"_
+        host_and_port of controller" *)
      and port = flag "-port" (required int) ~doc:"_ port to listen on" in
      fun () ->
-       (* We should start listing on the supplied [port], ready to handle incoming
-          queries for [Take_turn] and [Game_over]. We should also connect to the
-          controller and send a [Start_game] to initiate the game. *)
-          let%bind server =
-            let implementations = Rpc.Implementations.create_exn ~on_unknown_rpc:`Close_connection ~implementations:[Rpc.Rpc.implement Rpcs.Take_turn.rpc handle_turn] in
-           Rpc.Connection.serve
-             ~implementations
-             ~initial_connection_state:(fun _client_identity _client_addr ->
-               (* This constructs the "client" values which are passed to the
-                  implementation function above. We're just using unit for now. *)
-               ())
-             ~where_to_listen:(Tcp.Where_to_listen.of_port port)
-             ()
+       (* We should start listing on the supplied [port], ready to handle
+          incoming queries for [Take_turn] and [Game_over]. We should also
+          connect to the controller and send a [Start_game] to initiate the
+          game. *)
+       let%bind server =
+         let implementations =
+           Rpc.Implementations.create_exn
+             ~on_unknown_rpc:`Close_connection
+             ~implementations:
+               [ Rpc.Rpc.implement Rpcs.Take_turn.rpc handle_turn ]
          in
-         Tcp.Server.close_finished server)
+         Rpc.Connection.serve
+           ~implementations
+           ~initial_connection_state:(fun _client_identity _client_addr ->
+             (* This constructs the "client" values which are passed to the
+                implementation function above. We're just using unit for
+                now. *)
+             ())
+           ~where_to_listen:(Tcp.Where_to_listen.of_port port)
+           ()
+       in
+       Tcp.Server.close_finished server)
 ;;
 
 let command =

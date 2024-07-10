@@ -231,23 +231,6 @@ module Exercises = struct
     winning_moves ~me:(Game.Piece.flip me) game
   ;;
 
-  let solve game =
-    0;;
-
-
-  let minimax game ?(depth=3) ~me maximizing_player =
-    let current_node_heuristic = solve game in
-    match depth=0, evaluate game with 
-    | true, _ -> current_node_heuristic
-    | _, Game.Evaluation.Game_over {winner}-> (match winner with
-    | None -> 0
-    | Some winner -> if (Game.Piece.equal me winner) then Int.max_value else Int.min_value)
-    | _, _ ->
-
-  
-  ;;
-
-
   let available_moves_that_do_not_immediately_lose
     ~(me : Game.Piece.t)
     (game : Game.t)
@@ -257,6 +240,180 @@ module Exercises = struct
     | 0 -> available_moves game
     | 1 -> opponents_winning_moves
     | _ -> []
+  ;;
+
+  let get_next_game_states game ~piece =
+    let all_available_moves = available_moves game in
+    List.map all_available_moves ~f:(fun move_to_make ->
+      place_piece game ~piece ~position:move_to_make)
+  ;;
+
+  let get_neighbors { Game.Position.row; column = col } =
+    [ { Game.Position.row = row - 2; column = col - 2 }
+    ; { Game.Position.row = row - 2; column = col }
+    ; { Game.Position.row = row - 2; column = col + 2 }
+    ; { Game.Position.row = row - 1; column = col - 1 }
+    ; { Game.Position.row = row - 1; column = col }
+    ; { Game.Position.row = row - 1; column = col + 1 }
+    ; { Game.Position.row; column = col - 2 }
+    ; { Game.Position.row; column = col - 1 }
+    ; { Game.Position.row; column = col + 1 }
+    ; { Game.Position.row; column = col + 2 }
+    ; { Game.Position.row = row + 1; column = col - 1 }
+    ; { Game.Position.row = row + 1; column = col }
+    ; { Game.Position.row = row + 1; column = col + 1 }
+    ; { Game.Position.row = row + 2; column = col - 2 }
+    ; { Game.Position.row = row - 2; column = col }
+    ; { Game.Position.row = row + 2; column = col + 2 }
+    ]
+  ;;
+
+  let evaluate_how_many_consecutive_pieces_on_current_board
+    (game : Game.t)
+    ~piece_to_eval
+    =
+    (* returns a number that is bigger if the current piece is winning and
+       smaller if the other piece is winning*)
+    let n = Game.Game_kind.board_length game.game_kind in
+    let all_board_positions =
+      List.concat
+        (List.init n ~f:(fun row ->
+           List.init n ~f:(fun col ->
+             { Game.Position.row; Game.Position.column = col })))
+    in
+    List.fold all_board_positions ~init:0 ~f:(fun acc a_position ->
+      if not
+           (Map.existsi game.board ~f:(fun ~key ~data ->
+              ignore data;
+              (* not a valid neighbor and contributes nothing to total *)
+              Game.Position.equal key a_position))
+      then acc + 0
+      else
+        acc
+        + List.fold
+            (get_neighbors a_position)
+            ~init:0
+            ~f:(fun acc_for_point neighbor ->
+              if not
+                   (Map.existsi game.board ~f:(fun ~key ~data ->
+                      ignore data;
+                      Game.Position.equal key neighbor))
+              then acc_for_point + 0
+              else (
+                match
+                  Game.Piece.equal
+                    piece_to_eval
+                    (Map.find_exn game.board neighbor)
+                with
+                | true -> acc_for_point + 1
+                | false -> acc_for_point - 1)))
+  ;;
+
+  let score game ~me ~depth maximizing_player ~evaluated_game =
+    ignore depth;
+    (* determine the heuristic value for a game currently in progress *)
+    match evaluated_game with
+    | Game.Evaluation.Game_over { winner } ->
+      (match winner with
+       | None -> 0
+       | Some winner ->
+         if Game.Piece.equal me winner
+         then Int.max_value - 5 + depth
+         else Int.min_value + 5 - depth)
+    | Game.Evaluation.Game_continues ->
+      let winning_positions = winning_moves ~me game in
+      let losing_positions = losing_moves ~me game in
+      let number_of_winning_moves = List.length winning_positions in
+      let number_of_losing_moves = List.length losing_positions in
+      (match maximizing_player with
+       | true ->
+         (match number_of_winning_moves with
+          | 0 ->
+            Int.max_value
+            - 10
+            - 5
+            + depth
+            + evaluate_how_many_consecutive_pieces_on_current_board
+                game
+                ~piece_to_eval:me
+            (* funct is a higher int value if the piece passed in has more
+               consecutive pieces of it than the other piece *)
+          | _ -> Int.max_value - 15 + depth + (2 * number_of_winning_moves))
+       | false ->
+         (match number_of_losing_moves with
+          | 0 ->
+            Int.min_value
+            + 10
+            + 5
+            - depth
+            - evaluate_how_many_consecutive_pieces_on_current_board
+                game
+                ~piece_to_eval:(Game.Piece.flip me)
+          | _ -> Int.min_value + 15 - depth - (2 * number_of_losing_moves)))
+    | _ -> 0
+  ;;
+
+  let rec minimax game ?(depth = 5) ~me maximizing_player =
+    let evaluated_game = evaluate game in
+    let current_node_heuristic =
+      score game ~me ~depth maximizing_player ~evaluated_game
+    in
+    match depth = 0, evaluated_game with
+    | true, _ -> current_node_heuristic
+    | _, Game.Evaluation.Game_over { winner } ->
+      ignore winner;
+      current_node_heuristic
+    | _, _ ->
+      if maximizing_player
+      then (
+        let next_possible_game_states_list =
+          get_next_game_states game ~piece:me
+        in
+        List.fold
+          next_possible_game_states_list
+          ~init:Int.min_value
+          ~f:(fun acc game_state ->
+            let child_minimax =
+              minimax
+                game_state
+                ~depth:(depth - 1)
+                ~me
+                (not maximizing_player)
+            in
+            if acc > child_minimax then acc else child_minimax))
+      else (
+        let next_possible_game_states_list =
+          get_next_game_states game ~piece:(Game.Piece.flip me)
+        in
+        List.fold
+          next_possible_game_states_list
+          ~init:Int.max_value
+          ~f:(fun acc game_state ->
+            let child_minimax =
+              minimax
+                game_state
+                ~depth:(depth - 1)
+                ~me
+                (not maximizing_player)
+            in
+            if acc < child_minimax then acc else child_minimax))
+  ;;
+
+  let use_minimax_to_find_best_move game ~me =
+    let possible_moves = available_moves game in
+    let best_move, _heuristic =
+      List.fold
+        possible_moves
+        ~init:({ Game.Position.row = 0; column = 0 }, Int.min_value)
+        ~f:(fun (current_best_pos, current_highest_heuristic) move ->
+          let heuristic_calculated =
+            minimax (place_piece game ~piece:me ~position:move) ~me false
+          in
+          if heuristic_calculated > current_highest_heuristic
+          then move, heuristic_calculated
+          else current_best_pos, current_highest_heuristic)
+    in
+    best_move
   ;;
 
   let exercise_one =
@@ -334,6 +491,18 @@ module Exercises = struct
          return ())
   ;;
 
+  let exercise_six =
+    Command.async
+      ~summary:
+        "Exercise 6: What is the best next move for the piece passed in?"
+      (let%map_open.Command () = return ()
+       and piece = piece_flag in
+       fun () ->
+         let minimaxed = use_minimax_to_find_best_move ~me:piece non_win in
+         print_s [%sexp (minimaxed : Game.Position.t)];
+         return ())
+  ;;
+
   let command =
     Command.group
       ~summary:"Exercises"
@@ -342,6 +511,7 @@ module Exercises = struct
       ; "three", exercise_three
       ; "four", exercise_four
       ; "five", exercise_five
+      ; "six", exercise_six
       ]
   ;;
 end
@@ -350,7 +520,8 @@ let handle_turn (_client : unit) (query : Rpcs.Take_turn.Query.t) =
   print_s [%message "Received query" (query : Rpcs.Take_turn.Query.t)];
   let response =
     { Rpcs.Take_turn.Response.piece = query.you_play
-    ; Rpcs.Take_turn.Response.position = { row = 2; column = 2 }
+    ; Rpcs.Take_turn.Response.position =
+        Exercises.use_minimax_to_find_best_move query.game ~me:query.you_play
     }
   in
   return response

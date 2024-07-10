@@ -326,7 +326,6 @@ module Exercises = struct
   ;;
 
   let score game ~me ~depth maximizing_player ~evaluated_game =
-    ignore depth;
     (* determine the heuristic value for a game currently in progress *)
     match evaluated_game with
     | Game.Evaluation.Game_over { winner } ->
@@ -343,8 +342,8 @@ module Exercises = struct
       let number_of_losing_moves = List.length losing_positions in
       (match maximizing_player with
        | true ->
-         (match number_of_winning_moves with
-          | 0 ->
+         (match 0 = number_of_winning_moves, 0 = number_of_losing_moves with
+          | true, true ->
             Int.max_value
             - 10
             - 5
@@ -354,15 +353,18 @@ module Exercises = struct
                 ~piece_to_eval:me
             (* funct is a higher int value if the piece passed in has more
                consecutive pieces of it than the other piece *)
-          | _ ->
+          | true, false ->
+            Int.max_value - 13 + depth + (2 * number_of_winning_moves)
+          | false, true ->
+            Int.max_value - 17 + depth + (2 * number_of_losing_moves)
+          | _, _ ->
             Int.max_value
             - 15
             + depth
-            + number_of_winning_moves
-            - number_of_losing_moves)
+            + (number_of_losing_moves + number_of_winning_moves))
        | false ->
-         (match number_of_losing_moves with
-          | 0 ->
+         (match 0 = number_of_winning_moves, 0 = number_of_losing_moves with
+          | true, true ->
             Int.min_value
             + 10
             + 5
@@ -370,12 +372,16 @@ module Exercises = struct
             - evaluate_how_many_consecutive_pieces_on_current_board
                 game
                 ~piece_to_eval:(Game.Piece.flip me)
+          | true, false ->
+            Int.min_value + 13 - depth - (2 * number_of_losing_moves)
+          | false, true ->
+            Int.min_value + 17 - depth - (2 * number_of_winning_moves)
           | _ ->
             Int.min_value
             + 15
             - depth
             - number_of_losing_moves
-            + number_of_winning_moves))
+            - number_of_winning_moves))
     | _ -> 0
   ;;
 
@@ -385,9 +391,7 @@ module Exercises = struct
       score game ~me ~depth maximizing_player ~evaluated_game
     in
     match depth = 0, evaluated_game with
-    | true, _ -> current_node_heuristic
-    | _, Game.Evaluation.Game_over { winner } ->
-      ignore winner;
+    | true, _ | _, Game.Evaluation.Game_over { winner = _ } ->
       current_node_heuristic
     | _, _ ->
       if maximizing_player

@@ -354,7 +354,12 @@ module Exercises = struct
                 ~piece_to_eval:me
             (* funct is a higher int value if the piece passed in has more
                consecutive pieces of it than the other piece *)
-          | _ -> Int.max_value - 15 + depth + (2 * number_of_winning_moves))
+          | _ ->
+            Int.max_value
+            - 15
+            + depth
+            + number_of_winning_moves
+            - number_of_losing_moves)
        | false ->
          (match number_of_losing_moves with
           | 0 ->
@@ -365,7 +370,12 @@ module Exercises = struct
             - evaluate_how_many_consecutive_pieces_on_current_board
                 game
                 ~piece_to_eval:(Game.Piece.flip me)
-          | _ -> Int.min_value + 15 - depth - (2 * number_of_losing_moves)))
+          | _ ->
+            Int.min_value
+            + 15
+            - depth
+            - number_of_losing_moves
+            + number_of_winning_moves))
     | _ -> 0
   ;;
 

@@ -248,6 +248,22 @@ module Exercises = struct
       place_piece game ~piece ~position:move_to_make)
   ;;
 
+  let _get_better_neighbors { Game.Position.row; column = col } =
+    [ { Game.Position.row; column = col + 1 }
+    ; { Game.Position.row; column = col + 2 }
+    ; { Game.Position.row; column = col + 3 }
+    ; { Game.Position.row = row + 1; column = col - 1 }
+    ; { Game.Position.row = row + 1; column = col }
+    ; { Game.Position.row = row + 1; column = col + 1 }
+    ; { Game.Position.row = row + 2; column = col - 2 }
+    ; { Game.Position.row = row - 2; column = col }
+    ; { Game.Position.row = row + 2; column = col + 2 }
+    ; { Game.Position.row = row + 3; column = col - 3 }
+    ; { Game.Position.row = row + 3; column = col }
+    ; { Game.Position.row = row + 3; column = col + 3 }
+    ]
+  ;;
+
   let get_neighbors { Game.Position.row; column = col } =
     [ { Game.Position.row = row - 2; column = col - 2 }
     ; { Game.Position.row = row - 2; column = col }

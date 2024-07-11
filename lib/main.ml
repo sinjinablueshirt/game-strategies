@@ -251,16 +251,12 @@ module Exercises = struct
   let _get_better_neighbors { Game.Position.row; column = col } =
     [ { Game.Position.row; column = col + 1 }
     ; { Game.Position.row; column = col + 2 }
-    ; { Game.Position.row; column = col + 3 }
     ; { Game.Position.row = row + 1; column = col - 1 }
     ; { Game.Position.row = row + 1; column = col }
     ; { Game.Position.row = row + 1; column = col + 1 }
     ; { Game.Position.row = row + 2; column = col - 2 }
     ; { Game.Position.row = row - 2; column = col }
     ; { Game.Position.row = row + 2; column = col + 2 }
-    ; { Game.Position.row = row + 3; column = col - 3 }
-    ; { Game.Position.row = row + 3; column = col }
-    ; { Game.Position.row = row + 3; column = col + 3 }
     ]
   ;;
 
@@ -354,9 +350,9 @@ module Exercises = struct
             (* funct is a higher int value if the piece passed in has more
                consecutive pieces of it than the other piece *)
           | true, false ->
-            Int.max_value - 13 + depth + (2 * number_of_winning_moves)
+            Int.max_value - 10 + depth + (2 * number_of_losing_moves)
           | false, true ->
-            Int.max_value - 17 + depth + (2 * number_of_losing_moves)
+            Int.min_value + 10 - depth - (2 * number_of_winning_moves)
           | _, _ ->
             Int.max_value
             - 15
@@ -373,9 +369,9 @@ module Exercises = struct
                 game
                 ~piece_to_eval:(Game.Piece.flip me)
           | true, false ->
-            Int.min_value + 13 - depth - (2 * number_of_losing_moves)
+            Int.min_value + 10 - depth - (2 * number_of_losing_moves)
           | false, true ->
-            Int.min_value + 17 - depth - (2 * number_of_winning_moves)
+            Int.max_value - 10 + depth + (2 * number_of_winning_moves)
           | _ ->
             Int.min_value
             + 15
@@ -385,11 +381,46 @@ module Exercises = struct
     | _ -> 0
   ;;
 
+  (* let _gomoku_score game ~me ~depth maximizing_player ~evaluated_game =
+    match evaluated_game with
+    | Game.Evaluation.Game_over { winner } ->
+      (match winner with
+       | None -> Int.max_value
+       | Some winner ->
+         if Game.Piece.equal me winner
+         then Int.max_value - 5 + depth
+         else Int.min_value + 5 - depth)
+    | Game.Evaluation.Game_continues ->
+      let winning_positions = winning_moves ~me game in
+      let losing_positions = losing_moves ~me game in
+      let number_of_winning_moves = List.length winning_positions in
+      let number_of_losing_moves = List.length losing_positions in
+      if maximizing_player
+      then (
+        match number_of_winning_moves with
+        | 0 ->
+          (match number_of_losing_moves with
+           | 0 ->
+             Int.max_value
+             - 15
+             + depth
+             + evaluate_how_many_consecutive_pieces_on_current_board
+                 game
+                 ~piece_to_eval:me
+           | _ -> Int.min_value + 20 - depth - (2 * number_of_losing_moves))
+        | _ -> Int.max_value - 10 + depth + (2 * number_of_winning_moves))
+      else (match number_of_losing_moves with
+      | 0 -> ()
+      | _ -> )
+    | _ -> 0
+  ;; *)
+
   let rec minimax game ?(depth = 5) ~me maximizing_player =
     let evaluated_game = evaluate game in
     let current_node_heuristic =
       score game ~me ~depth maximizing_player ~evaluated_game
     in
+    
     match depth = 0, evaluated_game with
     | true, _ | _, Game.Evaluation.Game_over { winner = _ } ->
       current_node_heuristic
@@ -429,7 +460,7 @@ module Exercises = struct
             if acc < child_minimax then acc else child_minimax))
   ;;
 
-  let use_minimax_to_find_best_move game ~me =
+  let use_minimax_to_find_best_move game ~me depth =
     let possible_moves = available_moves game in
     let best_move, _heuristic =
       List.fold
@@ -437,7 +468,11 @@ module Exercises = struct
         ~init:({ Game.Position.row = 0; column = 0 }, Int.min_value)
         ~f:(fun (current_best_pos, current_highest_heuristic) move ->
           let heuristic_calculated =
-            minimax (place_piece game ~piece:me ~position:move) ~me false
+            minimax
+              (place_piece game ~piece:me ~position:move)
+              ~depth
+              ~me
+              false
           in
           if heuristic_calculated > current_highest_heuristic
           then move, heuristic_calculated
@@ -528,8 +563,38 @@ module Exercises = struct
       (let%map_open.Command () = return ()
        and piece = piece_flag in
        fun () ->
-         let minimaxed = use_minimax_to_find_best_move ~me:piece non_win in
+         let minimaxed = use_minimax_to_find_best_move ~me:piece non_win 5 in
          print_s [%sexp (minimaxed : Game.Position.t)];
+         return ())
+  ;;
+
+  let make_move game piece position = place_piece game ~piece ~position
+
+  let exercise_seven =
+    Command.async
+      ~summary:"Exercise 7: Omok against self"
+      (let%map_open.Command () = return ()
+       and piece = piece_flag in
+       fun () ->
+         Core.print_s [%message "starting"];
+         let list = List.init 228 ~f:(fun i -> i) in
+         Core.print_s [%message (List.length list : int)];
+         let _winner =
+           List.fold
+             list
+             ~init:(Game.empty Game.Game_kind.Omok, piece)
+             ~f:(fun (board, piece) _num ->
+               Core.print_s [%message "BOARD: "];
+               let best_move =
+                 use_minimax_to_find_best_move board ~me:piece 2
+               in
+               Core.print_s [%message (best_move : Game.Position.t)];
+               let new_board, next_piece =
+                 make_move board piece best_move, Game.Piece.flip piece
+               in
+               print_game new_board;
+               new_board, next_piece)
+         in
          return ())
   ;;
 
@@ -542,6 +607,7 @@ module Exercises = struct
       ; "four", exercise_four
       ; "five", exercise_five
       ; "six", exercise_six
+      ; "seven", exercise_seven
       ]
   ;;
 end
@@ -551,7 +617,10 @@ let handle_turn (_client : unit) (query : Rpcs.Take_turn.Query.t) =
   let response =
     { Rpcs.Take_turn.Response.piece = query.you_play
     ; Rpcs.Take_turn.Response.position =
-        Exercises.use_minimax_to_find_best_move query.game ~me:query.you_play
+        Exercises.use_minimax_to_find_best_move
+          query.game
+          ~me:query.you_play
+          5
     }
   in
   return response

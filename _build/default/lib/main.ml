@@ -57,8 +57,8 @@ module Exercises = struct
         String.concat ~sep:" | " row_list)
     in
     List.iteri rows_as_strings ~f:(fun row_num row ->
-      print_endline row;
-      if row_num < n - 1 then print_endline "---------")
+      Core.print_endline row;
+      if row_num < n - 1 then (if n=3 then Core.print_endline "---------" else Core.print_endline "------------------------------------------------------"))
   ;;
 
   let%expect_test "print_win_for_x" =
@@ -184,6 +184,9 @@ module Exercises = struct
   ;;
 
   (* Exercise 2 *)
+  let no_available_spaces (game:Game.t) =
+    Map.length game.board = Game.Game_kind.board_length game.game_kind * Game.Game_kind.board_length game.game_kind
+  (* Exercise 2 *)
   let evaluate (game : Game.t) : Game.Evaluation.t =
     let n = Game.Game_kind.board_length game.game_kind in
     let all_board_positions =
@@ -197,7 +200,7 @@ module Exercises = struct
         search_for_solution_from_position pos game)
     in
     if List.length final = 0
-    then Game.Evaluation.Game_continues
+    then( if (no_available_spaces game) then Game.Evaluation.Game_over { winner = None } else Game.Evaluation.Game_continues)
     else Game.Evaluation.Game_over { winner = Some (List.hd_exn final) }
   ;;
 
@@ -326,11 +329,11 @@ module Exercises = struct
     match evaluated_game with
     | Game.Evaluation.Game_over { winner } ->
       (match winner with
-       | None -> 0
        | Some winner ->
          if Game.Piece.equal me winner
          then Int.max_value - 5 + depth
-         else Int.min_value + 5 - depth)
+         else Int.min_value + 5 - depth
+         | None -> 0)
     | Game.Evaluation.Game_continues ->
       let winning_positions = winning_moves ~me game in
       let losing_positions = losing_moves ~me game in
@@ -350,14 +353,14 @@ module Exercises = struct
             (* funct is a higher int value if the piece passed in has more
                consecutive pieces of it than the other piece *)
           | true, false ->
-            Int.max_value - 10 + depth + (2 * number_of_losing_moves)
+            Int.min_value + 10 - depth - (2 * number_of_losing_moves)
           | false, true ->
-            Int.min_value + 10 - depth - (2 * number_of_winning_moves)
+            Int.max_value - 20 + depth + (2 * number_of_winning_moves)
           | _, _ ->
             Int.max_value
             - 15
             + depth
-            + (number_of_losing_moves + number_of_winning_moves))
+            -number_of_losing_moves + number_of_winning_moves)
        | false ->
          (match 0 = number_of_winning_moves, 0 = number_of_losing_moves with
           | true, true ->
@@ -371,21 +374,79 @@ module Exercises = struct
           | true, false ->
             Int.min_value + 10 - depth - (2 * number_of_losing_moves)
           | false, true ->
-            Int.max_value - 10 + depth + (2 * number_of_winning_moves)
+            Int.max_value - 20 + depth + (2 * number_of_winning_moves)
           | _ ->
             Int.min_value
             + 15
             - depth
             - number_of_losing_moves
-            - number_of_winning_moves))
+            + number_of_winning_moves))
     | _ -> 0
   ;;
-
-  (* let _gomoku_score game ~me ~depth maximizing_player ~evaluated_game =
+  let _temp_gomoku_score game ~me ~depth maximizing_player ~evaluated_game =
+    (* determine the heuristic value for a game currently in progress *)
     match evaluated_game with
     | Game.Evaluation.Game_over { winner } ->
       (match winner with
-       | None -> Int.max_value
+       | Some winner ->
+         if Game.Piece.equal me winner
+         then Int.max_value - 5 + depth
+         else Int.min_value + 5 - depth
+         | None -> 0)
+    | Game.Evaluation.Game_continues ->
+      (* let winning_positions = winning_moves ~me game in
+      let losing_positions = losing_moves ~me game in
+      let number_of_winning_moves = List.length winning_positions in
+      let number_of_losing_moves = List.length losing_positions in *)
+      (match maximizing_player with
+       | true ->
+         (* (match 0 = number_of_winning_moves, 0 = number_of_losing_moves with
+          | true, true -> *)
+            Int.max_value
+            - 10
+            - 5
+            + depth
+            + evaluate_how_many_consecutive_pieces_on_current_board
+                game
+                ~piece_to_eval:me
+            (* funct is a higher int value if the piece passed in has more
+               consecutive pieces of it than the other piece *)
+          (* | true, false ->
+            Int.min_value + 10 - depth - (2 * number_of_losing_moves)
+          | false, true ->
+            Int.max_value - 20 + depth + (2 * number_of_winning_moves)
+          | _, _ ->
+            Int.max_value
+            - 15
+            + depth
+            -number_of_losing_moves + number_of_winning_moves) *)
+       | false ->
+         (* (match 0 = number_of_winning_moves, 0 = number_of_losing_moves with
+          | true, true -> *)
+            Int.min_value
+            + 10
+            + 5
+            - depth
+            - evaluate_how_many_consecutive_pieces_on_current_board
+                game
+                ~piece_to_eval:(Game.Piece.flip me))
+          (* | true, false ->
+            Int.min_value + 10 - depth - (2 * number_of_losing_moves)
+          | false, true ->
+            Int.max_value - 20 + depth + (2 * number_of_winning_moves)
+          | _ ->
+            Int.min_value
+            + 15
+            - depth
+            - number_of_losing_moves
+            + number_of_winning_moves)) *)
+    | _ -> 0
+  ;;
+    (* let _gomoku_score game ~me ~depth maximizing_player ~evaluated_game =
+    match evaluated_game with
+    | Game.Evaluation.Game_over { winner } ->
+      (match winner with
+       | None -> 0
        | Some winner ->
          if Game.Piece.equal me winner
          then Int.max_value - 5 + depth
@@ -412,15 +473,17 @@ module Exercises = struct
       else (match number_of_losing_moves with
       | 0 -> ()
       | _ -> )
-    | _ -> 0
-  ;; *)
+    | _ -> 0 *)
+  ;;
 
-  let rec minimax game ?(depth = 5) ~me maximizing_player =
+  let rec minimax game ?(depth = 2) ~me maximizing_player =
+
     let evaluated_game = evaluate game in
-    let current_node_heuristic =
+    let current_node_heuristic = 
       score game ~me ~depth maximizing_player ~evaluated_game
     in
-    
+    (* Core.print_endline "current heuristic: ";
+    Core.print_s (Int.sexp_of_t current_node_heuristic); *)
     match depth = 0, evaluated_game with
     | true, _ | _, Game.Evaluation.Game_over { winner = _ } ->
       current_node_heuristic
@@ -460,19 +523,17 @@ module Exercises = struct
             if acc < child_minimax then acc else child_minimax))
   ;;
 
-  let use_minimax_to_find_best_move game ~me depth =
+  let use_minimax_to_find_best_move game ~me =
+    (* Core.print_s (Game.sexp_of_t game); *)
     let possible_moves = available_moves game in
+
     let best_move, _heuristic =
       List.fold
         possible_moves
         ~init:({ Game.Position.row = 0; column = 0 }, Int.min_value)
         ~f:(fun (current_best_pos, current_highest_heuristic) move ->
           let heuristic_calculated =
-            minimax
-              (place_piece game ~piece:me ~position:move)
-              ~depth
-              ~me
-              false
+            minimax (place_piece game ~piece:me ~position:move) ~me false
           in
           if heuristic_calculated > current_highest_heuristic
           then move, heuristic_calculated
@@ -563,7 +624,7 @@ module Exercises = struct
       (let%map_open.Command () = return ()
        and piece = piece_flag in
        fun () ->
-         let minimaxed = use_minimax_to_find_best_move ~me:piece non_win 5 in
+         let minimaxed = use_minimax_to_find_best_move ~me:piece non_win in
          print_s [%sexp (minimaxed : Game.Position.t)];
          return ())
   ;;
@@ -577,7 +638,7 @@ module Exercises = struct
        and piece = piece_flag in
        fun () ->
          Core.print_s [%message "starting"];
-         let list = List.init 228 ~f:(fun i -> i) in
+         let list = List.init 225 ~f:(fun i -> i) in
          Core.print_s [%message (List.length list : int)];
          let _winner =
            List.fold
@@ -585,8 +646,9 @@ module Exercises = struct
              ~init:(Game.empty Game.Game_kind.Omok, piece)
              ~f:(fun (board, piece) _num ->
                Core.print_s [%message "BOARD: "];
+               print_game board;
                let best_move =
-                 use_minimax_to_find_best_move board ~me:piece 2
+                 use_minimax_to_find_best_move board ~me:piece 
                in
                Core.print_s [%message (best_move : Game.Position.t)];
                let new_board, next_piece =
@@ -617,10 +679,7 @@ let handle_turn (_client : unit) (query : Rpcs.Take_turn.Query.t) =
   let response =
     { Rpcs.Take_turn.Response.piece = query.you_play
     ; Rpcs.Take_turn.Response.position =
-        Exercises.use_minimax_to_find_best_move
-          query.game
-          ~me:query.you_play
-          5
+        Exercises.use_minimax_to_find_best_move query.game ~me:query.you_play
     }
   in
   return response

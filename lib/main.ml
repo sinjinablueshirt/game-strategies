@@ -87,8 +87,19 @@ module Exercises = struct
     return ()
   ;;
 
+  let adjacent_neighbors { Game.Position.row; column = col } =
+    [ { Game.Position.row; column = col + 1 }
+    ; { Game.Position.row; column = col -1 }
+    ; { Game.Position.row = row + 1; column = col - 1 }
+    ; { Game.Position.row = row + 1; column = col }
+    ; { Game.Position.row = row + 1; column = col + 1 }
+    ; { Game.Position.row = row -1; column = col - 1 }
+    ; { Game.Position.row = row - 1; column = col }
+    ; { Game.Position.row = row - 1; column = col + 1 }
+    ]
+
   (* Exercise 1 *)
-let get_close_available_moves (game : Game.t) : Game.Position.t list =;;
+
 
   let available_moves (game : Game.t) : Game.Position.t list =
     let n = Game.Game_kind.board_length game.game_kind in
@@ -100,11 +111,20 @@ let get_close_available_moves (game : Game.t) : Game.Position.t list =;;
     in
     List.filter all_board_positions ~f:(fun position ->
       not
-        (Map.existsi game.board ~f:(fun ~key ~data ->
-           ignore data;
-           Game.Position.equal position key)))
+        (Map.mem game.board position))
   ;;
 
+  let get_close_available_moves (game : Game.t) : Game.Position.t list =
+    match Map.length game.board with 
+    | 0 -> [{Game.Position.row=(Game.Game_kind.board_length game.game_kind)/2 ; column = (Game.Game_kind.board_length game.game_kind)/2}]
+    | _ -> if 0<Map.length game.board && Map.length game.board<((Game.Game_kind.board_length game.game_kind*Game.Game_kind.board_length game.game_kind)/2) then (
+      List.fold 
+      (Map.keys game.board) 
+      ~init:[] 
+      ~f:(fun pos_list key-> let offsets = adjacent_neighbors key in pos_list@(List.filter offsets ~f:(fun neighbor -> (not (Map.mem game.board neighbor) ) && (not (List.exists pos_list ~f:(Game.Position.equal neighbor))) && Game.Position.in_bounds neighbor ~game_kind: game.game_kind)))
+    ) else (available_moves game)
+  
+  ;;
   module Direction = struct
     type t =
       | Right
@@ -153,9 +173,7 @@ let get_close_available_moves (game : Game.t) : Game.Position.t list =;;
         in
         if List.exists neighbors_list ~f:(fun neighbor ->
              not
-               (Map.existsi game.board ~f:(fun ~key ~data ->
-                  ignore data;
-                  Game.Position.equal key neighbor)))
+               (Map.mem game.board neighbor))
         then None
         else if List.exists neighbors_list ~f:(fun nbr ->
                   let nbr_piece = Map.find_exn game.board nbr in
@@ -190,15 +208,8 @@ let get_close_available_moves (game : Game.t) : Game.Position.t list =;;
     Map.length game.board = Game.Game_kind.board_length game.game_kind * Game.Game_kind.board_length game.game_kind
   (* Exercise 2 *)
   let evaluate (game : Game.t) : Game.Evaluation.t =
-    let n = Game.Game_kind.board_length game.game_kind in
-    let all_board_positions =
-      List.concat
-        (List.init n ~f:(fun row ->
-           List.init n ~f:(fun col ->
-             { Game.Position.row; Game.Position.column = col })))
-    in
     let final =
-      List.filter_map all_board_positions ~f:(fun pos ->
+      List.filter_map (Map.keys game.board) ~f:(fun pos ->
         search_for_solution_from_position pos game)
     in
     if List.length final = 0
@@ -208,6 +219,28 @@ let get_close_available_moves (game : Game.t) : Game.Position.t list =;;
 
   (* Exercise 3 *)
   let winning_moves ~(me : Game.Piece.t) (game : Game.t)
+    : Game.Position.t list
+    =
+    let all_possible_placements = get_close_available_moves game in
+    let winning_moves =
+      List.filter all_possible_placements ~f:(fun position ->
+        let new_game = Game.empty game.game_kind in
+        let res =
+          Map.fold
+            game.board
+            ~init:new_game
+            ~f:(fun ~key ~data building_game ->
+              place_piece building_game ~piece:data ~position:key)
+        in
+        let final_new_game = place_piece res ~piece:me ~position in
+        match evaluate final_new_game with
+        | Game.Evaluation.Game_continues -> false
+        | _ -> true)
+    in
+    winning_moves
+  ;;
+
+  let old_winning_moves ~(me : Game.Piece.t) (game : Game.t)
     : Game.Position.t list
     =
     let all_possible_placements = available_moves game in
@@ -228,6 +261,11 @@ let get_close_available_moves (game : Game.t) : Game.Position.t list =;;
     in
     winning_moves
   ;;
+  let old_losing_moves ~(me : Game.Piece.t) (game : Game.t)
+  : Game.Position.t list
+  =
+  winning_moves ~me:(Game.Piece.flip me) game
+;;
 
   (* Exercise 4 *)
   let losing_moves ~(me : Game.Piece.t) (game : Game.t)
@@ -248,7 +286,7 @@ let get_close_available_moves (game : Game.t) : Game.Position.t list =;;
   ;;
 
   let get_next_game_states game ~piece =
-    let all_available_moves = available_moves game in
+    let all_available_moves = get_close_available_moves game in
     List.map all_available_moves ~f:(fun move_to_make ->
       place_piece game ~piece ~position:move_to_make)
   ;;
@@ -285,6 +323,22 @@ let get_close_available_moves (game : Game.t) : Game.Position.t list =;;
     ]
   ;;
 
+  let better_evaluate_how_many_consecutive_pieces_on_current_board (game : Game.t)
+  ~piece_to_eval =
+  Map.fold game.board ~init:0 ~f:(fun ~key ~data acc -> ignore data; acc+(List.fold (get_neighbors key) ~init:0~f:(fun acc_for_point neighbor ->
+    if not
+         (Map.mem game.board neighbor)
+    then acc_for_point + 0
+    else (
+      match
+        Game.Piece.equal
+          piece_to_eval
+          (Map.find_exn game.board neighbor)
+      with
+      | true -> acc_for_point + 1
+      | false -> acc_for_point - 1)))) 
+
+;;
   let evaluate_how_many_consecutive_pieces_on_current_board
     (game : Game.t)
     ~piece_to_eval
@@ -308,7 +362,7 @@ let get_close_available_moves (game : Game.t) : Game.Position.t list =;;
       else
         acc
         + List.fold
-            (get_neighbors a_position)
+            (_get_better_neighbors a_position)
             ~init:0
             ~f:(fun acc_for_point neighbor ->
               if not
@@ -337,8 +391,8 @@ let get_close_available_moves (game : Game.t) : Game.Position.t list =;;
          else Int.min_value + 5 - depth
          | None -> 0)
     | Game.Evaluation.Game_continues ->
-      let winning_positions = winning_moves ~me game in
-      let losing_positions = losing_moves ~me game in
+      let winning_positions = old_winning_moves ~me game in
+      let losing_positions = old_losing_moves ~me game in
       let number_of_winning_moves = List.length winning_positions in
       let number_of_losing_moves = List.length losing_positions in
       (match maximizing_player with
@@ -347,7 +401,7 @@ let get_close_available_moves (game : Game.t) : Game.Position.t list =;;
           | true, true ->
             Int.max_value
             - 10
-            - 5
+            - 8
             + depth
             + evaluate_how_many_consecutive_pieces_on_current_board
                 game
@@ -368,7 +422,7 @@ let get_close_available_moves (game : Game.t) : Game.Position.t list =;;
           | true, true ->
             Int.min_value
             + 10
-            + 5
+            + 8
             - depth
             - evaluate_how_many_consecutive_pieces_on_current_board
                 game
@@ -396,24 +450,24 @@ let get_close_available_moves (game : Game.t) : Game.Position.t list =;;
          else Int.min_value + 5 - depth
          | None -> 0)
     | Game.Evaluation.Game_continues ->
-      (* let winning_positions = winning_moves ~me game in
+      let winning_positions = winning_moves ~me game in
       let losing_positions = losing_moves ~me game in
       let number_of_winning_moves = List.length winning_positions in
-      let number_of_losing_moves = List.length losing_positions in *)
+      let number_of_losing_moves = List.length losing_positions in
       (match maximizing_player with
        | true ->
-         (* (match 0 = number_of_winning_moves, 0 = number_of_losing_moves with
-          | true, true -> *)
+         (match 0 = number_of_winning_moves, 0 = number_of_losing_moves with
+          | true, true ->
             Int.max_value
             - 10
             - 5
             + depth
-            + evaluate_how_many_consecutive_pieces_on_current_board
+            + better_evaluate_how_many_consecutive_pieces_on_current_board
                 game
                 ~piece_to_eval:me
             (* funct is a higher int value if the piece passed in has more
                consecutive pieces of it than the other piece *)
-          (* | true, false ->
+          | true, false ->
             Int.min_value + 10 - depth - (2 * number_of_losing_moves)
           | false, true ->
             Int.max_value - 20 + depth + (2 * number_of_winning_moves)
@@ -421,18 +475,18 @@ let get_close_available_moves (game : Game.t) : Game.Position.t list =;;
             Int.max_value
             - 15
             + depth
-            -number_of_losing_moves + number_of_winning_moves) *)
+            -number_of_losing_moves + number_of_winning_moves)
        | false ->
-         (* (match 0 = number_of_winning_moves, 0 = number_of_losing_moves with
-          | true, true -> *)
+         (match 0 = number_of_winning_moves, 0 = number_of_losing_moves with
+          | true, true ->
             Int.min_value
             + 10
             + 5
             - depth
-            - evaluate_how_many_consecutive_pieces_on_current_board
+            - better_evaluate_how_many_consecutive_pieces_on_current_board
                 game
-                ~piece_to_eval:(Game.Piece.flip me))
-          (* | true, false ->
+                ~piece_to_eval:(Game.Piece.flip me)
+          | true, false ->
             Int.min_value + 10 - depth - (2 * number_of_losing_moves)
           | false, true ->
             Int.max_value - 20 + depth + (2 * number_of_winning_moves)
@@ -441,7 +495,7 @@ let get_close_available_moves (game : Game.t) : Game.Position.t list =;;
             + 15
             - depth
             - number_of_losing_moves
-            + number_of_winning_moves)) *)
+            + number_of_winning_moves))
     | _ -> 0
   ;;
     (* let _gomoku_score game ~me ~depth maximizing_player ~evaluated_game =
@@ -478,12 +532,12 @@ let get_close_available_moves (game : Game.t) : Game.Position.t list =;;
     | _ -> 0 *)
   ;;
 
-  let rec minimax game ?(depth = 2) ~me maximizing_player =
+  let rec minimax game ?(depth = 1) ~me maximizing_player =
 
     let evaluated_game = evaluate game in
+    if Game.Game_kind.equal game.game_kind Tic_tac_toe then
     let current_node_heuristic = 
-      score game ~me ~depth maximizing_player ~evaluated_game
-    in
+      score game ~me ~depth maximizing_player ~evaluated_game in
     (* Core.print_endline "current heuristic: ";
     Core.print_s (Int.sexp_of_t current_node_heuristic); *)
     match depth = 0, evaluated_game with
@@ -523,11 +577,52 @@ let get_close_available_moves (game : Game.t) : Game.Position.t list =;;
                 (not maximizing_player)
             in
             if acc < child_minimax then acc else child_minimax))
+          else let current_node_heuristic = 
+            _temp_gomoku_score game ~me ~depth maximizing_player ~evaluated_game in
+          (* Core.print_endline "current heuristic: ";
+          Core.print_s (Int.sexp_of_t current_node_heuristic); *)
+          match depth = 0, evaluated_game with
+          | true, _ | _, Game.Evaluation.Game_over { winner = _ } ->
+            current_node_heuristic
+          | _, _ ->
+            if maximizing_player
+            then (
+              let next_possible_game_states_list =
+                get_next_game_states game ~piece:me
+              in
+              List.fold
+                next_possible_game_states_list
+                ~init:Int.min_value
+                ~f:(fun acc game_state ->
+                  let child_minimax =
+                    minimax
+                      game_state
+                      ~depth:(depth - 1)
+                      ~me
+                      (not maximizing_player)
+                  in
+                  if acc > child_minimax then acc else child_minimax))
+            else (
+              let next_possible_game_states_list =
+                get_next_game_states game ~piece:(Game.Piece.flip me)
+              in
+              List.fold
+                next_possible_game_states_list
+                ~init:Int.max_value
+                ~f:(fun acc game_state ->
+                  let child_minimax =
+                    minimax
+                      game_state
+                      ~depth:(depth - 1)
+                      ~me
+                      (not maximizing_player)
+                  in
+                  if acc < child_minimax then acc else child_minimax))
   ;;
 
   let use_minimax_to_find_best_move game ~me =
     (* Core.print_s (Game.sexp_of_t game); *)
-    let possible_moves = available_moves game in
+    let possible_moves = get_close_available_moves game in
 
     let best_move, _heuristic =
       List.fold
@@ -647,8 +742,6 @@ let get_close_available_moves (game : Game.t) : Game.Position.t list =;;
              list
              ~init:(Game.empty Game.Game_kind.Omok, piece)
              ~f:(fun (board, piece) _num ->
-               Core.print_s [%message "BOARD: "];
-               print_game board;
                let best_move =
                  use_minimax_to_find_best_move board ~me:piece 
                in
